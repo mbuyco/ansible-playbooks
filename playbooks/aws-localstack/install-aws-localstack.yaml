@@ -1,0 +1,10 @@
+---
+- hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: install localstack
+      pip:
+        name: localstack
+
+    - name: start localstack
+      shell: ENTRYPOINT=-d localstack start
