@@ -1,0 +1,77 @@
+---
+- hosts: all
+  gather_facts: false
+  vars:
+    aws_region: us-west-1
+    aws_bin: aws --endpoint-url http://localhost:4566
+  tasks:
+    - name: Install AWS CLI
+      unarchive:
+        creates: "{{ playbook_dir }}/../../files/aws"
+        dest: "{{ playbook_dir }}/../../files"
+        src: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+        remote_src: yes
+
+    - name: Create files directory to store AWS artifacts
+      file: 
+        path: "{{ playbook_dir }}/../../files"
+        state: directory
+        mode: "0755"
+
+    - name: Install localstack dependencies
+      block:
+        - name: Install docker
+          pip:
+            name: docker
+
+        - name: install docker-compose
+          pip:
+            name: docker-compose
+
+    - name: Install localstack
+      pip:
+        name: localstack
+
+    - name: Start localstack
+      shell: >
+        docker ps | grep localstack;
+        
+        if [ $? -gt 0 ]; then
+          ENTRYPOINT=-d localstack start
+        fi
+
+    - name: Create IAM admin group
+      block:
+        - name: Create Admin Group
+          command: >
+            {{ aws_bin }} iam create-group --group-name Admins
+          ignore_errors: yes
+
+        - command: >
+            {{ aws_bin }} iam list-groups
+          register: iam_group_list
+
+        - debug: 
+            msg: "{{ iam_group_list.stdout_lines }}"
+
+        - name: Attach admin policy
+          command: >
+            {{ aws_bin }} iam attach-group-policy --group-name Admins --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
+          ignore_errors: yes
+
+        - command: >
+            {{ aws_bin }} iam list-attached-group-policies --group-name Admins
+          register: iam_group_policy_list
+
+        - debug: 
+            msg: "{{ iam_group_policy_list.stdout_lines }}"
+
+    - name: Create IAM admin user
+      block:
+        - name: Create user
+          command: >
+            {{ aws_bin }} iam create-user --user-name Admin
+
+        - name: Add user to Admins group
+          command: >
+            {{ aws_bin }} iam add-user-to-group --group-name Admins --user-name Admin
