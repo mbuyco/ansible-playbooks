@@ -1,2 +1,2 @@
 # ansible-playbooks
-A collection of Ansible playbooks for server automation
+A collection of Ansible playbooks for automation tasks
